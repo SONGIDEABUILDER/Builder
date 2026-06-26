@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SONG IDEA BUILDER — Suno Prompt Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080a0f;
+    --surface: #0e1118;
+    --surface2: #161b26;
+    --border: #1e2535;
+    --accent: #e8ff47;
+    --accent2: #ff4f6e;
+    --accent3: #47c8ff;
+    --text: #e8ecf4;
+    --muted: #6a7590;
+    --glow: rgba(232,255,71,0.15);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.4;
+  }
+
+  /* Ambient glow */
+  body::after {
+    content: '';
+    position: fixed;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(232,255,71,0.04) 0%, transparent 70%);
+    top: -200px; left: 50%;
+    transform: translateX(-50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 40px 20px 80px;
+  }
+
+  /* Header */
+  header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 48px;
+    gap: 16px;
+  }
+
+  .logo-block h1 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: clamp(28px, 5vw, 46px);
+    letter-spacing: -1px;
+    line-height: 1;
+    color: var(--accent);
+    text-shadow: 0 0 40px rgba(232,255,71,0.3);
+  }
+
+  .logo-block .tagline {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 6px;
+  }
+
+  .header-actions {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .btn-guide {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: 'Space Mono', monospace;
+    font-size: 12px;
+    padding: 9px 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .btn-guide:hover {
+    background: var(--accent);
+    color: var(--bg);
+  }
+  .btn-guide svg { width: 14px; height: 14px; }
+
+  /* Rules / consent gate */
+  .rules-section {
+    background: var(--surface);
+    border: 1px solid var(--accent2);
+    padding: 20px 24px;
+    margin-bottom: 32px;
+    position: relative;
+  }
+  .rules-section::before {
+    content: 'RULES — READ BEFORE USE';
+    position: absolute;
+    top: -9px; left: 16px;
+    background: var(--bg);
+    padding: 0 8px;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--accent2);
+  }
+  .rules-section ul {
+    list-style: none;
+    padding: 0;
+    margin: 4px 0 16px;
+  }
+  .rules-section ul li {
+    padding: 6px 0 6px 18px;
+    position: relative;
+    color: var(--muted);
+    font-size: 12.5px;
+    line-height: 1.6;
+  }
+  .rules-section ul li::before {
+    content: '→';
+    position: absolute;
+    left: 0;
+    color: var(--accent2);
+  }
+  .rules-section .rules-links {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+  .rules-section .rules-links a { color: var(--accent3); text-decoration: none; }
+  .rules-section .rules-links a:hover { text-decoration: underline; }
+  .rules-checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .rules-checkbox-row input[type="checkbox"] {
+    width: 18px; height: 18px;
+    accent-color: var(--accent);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .rules-checkbox-row label {
+    font-size: 12.5px;
+    color: var(--text);
+    text-transform: none;
+    letter-spacing: 0;
+    cursor: pointer;
+  }
+
+  .app-gate {
+    transition: opacity 0.25s ease;
+  }
+  .app-gate.locked {
+    opacity: 0.35;
+    filter: grayscale(0.4);
+    pointer-events: none;
+    user-select: none;
+  }
+  .api-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 20px 24px;
+    margin-bottom: 32px;
+    position: relative;
+  }
+  .api-section::before {
+    content: 'CONFIG';
+    position: absolute;
+    top: -9px; left: 16px;
+    background: var(--bg);
+    padding: 0 8px;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+  }
+  .api-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .api-row input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    padding: 10px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .api-row input:focus { border-color: var(--accent); }
+  .api-row input::placeholder { color: var(--muted); }
+
+  /* Form */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 580px) { .form-grid { grid-template-columns: 1fr; } }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .field.full { grid-column: 1 / -1; }
+
+  label {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  input[type="text"], textarea, select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+  }
+  input[type="text"]:focus, textarea:focus, select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(232,255,71,0.07);
+  }
+  input[type="text"]::placeholder, textarea::placeholder { color: var(--muted); }
+  textarea { resize: vertical; min-height: 80px; }
+  select option { background: var(--surface2); }
+
+  /* Mood pills */
+  .mood-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .pill {
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 0.05em;
+  }
+  .pill:hover { border-color: var(--accent); color: var(--accent); }
+  .pill.active { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+  /* Generate button */
+  .btn-generate {
+    width: 100%;
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 15px;
+    padding: 18px;
+    cursor: pointer;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    margin-top: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+  .btn-generate:hover { background: #f5ff6e; box-shadow: 0 0 30px rgba(232,255,71,0.25); }
+  .btn-generate:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-generate .spinner {
+    display: none;
+    width: 18px; height: 18px;
+    border: 2px solid rgba(0,0,0,0.3);
+    border-top-color: var(--bg);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin: 0 auto;
+  }
+  .btn-generate.loading .btn-text { display: none; }
+  .btn-generate.loading .spinner { display: block; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Output */
+  #output {
+    margin-top: 40px;
+    display: none;
+  }
+  #output.visible { display: block; animation: fadeUp 0.4s ease; }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .output-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .output-header h2 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: 0.05em;
+    color: var(--accent);
+  }
+
+  .btn-copy {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    padding: 7px 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .btn-copy:hover { border-color: var(--accent3); color: var(--accent3); }
+  .btn-copy svg { width: 12px; height: 12px; }
+
+  .output-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 24px;
+    margin-bottom: 16px;
+    position: relative;
+  }
+  .output-block .block-label {
+    position: absolute;
+    top: -9px; left: 14px;
+    background: var(--bg);
+    padding: 0 8px;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .suno-prompt-box {
+    background: var(--bg);
+    border: 1px solid var(--accent);
+    padding: 20px;
+    font-size: 13px;
+    line-height: 1.8;
+    white-space: pre-wrap;
+    color: var(--accent);
+    box-shadow: inset 0 0 30px rgba(232,255,71,0.03);
+  }
+
+  .structure-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+  }
+  .struct-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    padding: 16px;
+  }
+  .struct-card .sc-label {
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .struct-card .sc-value {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+  }
+  .struct-card .sc-value strong {
+    color: var(--accent3);
+    font-style: normal;
+  }
+
+  .lyrics-section { margin-top: 8px; }
+  .lyric-block { margin-bottom: 20px; }
+  .lyric-block .ly-label {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--accent2);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .lyric-block .ly-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .lyric-block pre {
+    font-size: 13px;
+    line-height: 1.9;
+    color: var(--text);
+    white-space: pre-wrap;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .tags-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .tag {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--accent3);
+    font-size: 11px;
+    padding: 5px 12px;
+    letter-spacing: 0.05em;
+  }
+
+  /* Error */
+  .error-msg {
+    background: rgba(255,79,110,0.08);
+    border: 1px solid rgba(255,79,110,0.3);
+    color: var(--accent2);
+    padding: 14px 18px;
+    font-size: 13px;
+    margin-top: 16px;
+    display: none;
+  }
+  .error-msg.visible { display: block; }
+
+  /* ── GUIDE MODAL ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(8,10,15,0.92);
+    z-index: 1000;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 40px 20px;
+    overflow-y: auto;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    max-width: 720px;
+    width: 100%;
+    position: relative;
+    transform: translateY(20px);
+    transition: transform 0.25s;
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+
+  .modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-head h2 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 18px;
+    color: var(--accent);
+    letter-spacing: 0.03em;
+  }
+  .modal-close {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    width: 32px; height: 32px;
+    cursor: pointer;
+    font-size: 18px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+    line-height: 1;
+  }
+  .modal-close:hover { border-color: var(--accent2); color: var(--accent2); }
+
+  .modal-body {
+    padding: 28px 24px;
+    line-height: 1.75;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .modal-body h3 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--accent3);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin: 24px 0 10px;
+  }
+  .modal-body h3:first-child { margin-top: 0; }
+  .modal-body p { color: var(--muted); margin-bottom: 8px; }
+  .modal-body ul { list-style: none; padding: 0; }
+  .modal-body ul li {
+    padding: 6px 0 6px 18px;
+    position: relative;
+    color: var(--muted);
+    border-bottom: 1px solid rgba(30,37,53,0.5);
+  }
+  .modal-body ul li::before {
+    content: '→';
+    position: absolute;
+    left: 0;
+    color: var(--accent);
+  }
+  .modal-body .highlight-box {
+    background: var(--surface2);
+    border-left: 3px solid var(--accent);
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.7;
+  }
+  .modal-body .step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px; height: 22px;
+    background: var(--accent);
+    color: var(--bg);
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 11px;
+    margin-right: 8px;
+    flex-shrink: 0;
+    vertical-align: middle;
+  }
+  .modal-body .step {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 12px;
+    color: var(--muted);
+  }
+  .modal-body .step-text strong { color: var(--text); }
+
+  /* Netlify badge */
+  .netlify-note {
+    margin-top: 40px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+  }
+  .netlify-note a { color: var(--accent3); text-decoration: none; }
+  .netlify-note a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo-block">
+      <h1>SONG IDEA BUILDER</h1>
+      <div class="tagline">Song Idea Generator + Structure Planner</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn-guide" onclick="openGuide()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>
+        </svg>
+        Guide
+      </button>
+    </div>
+  </header>
+
+  <!-- RULES / CONSENT -->
+  <div class="rules-section">
+    <ul>
+      <li>You must be 18 or older to use this app — Google's Gemini API Terms require it.</li>
+      <li>You bring your own free Gemini API key. You're responsible for your own usage, billing, and staying within Google's rate limits.</li>
+      <li>On the free tier, Google may use your prompts and the generated output to improve their models. Don't paste anything private, sensitive, or confidential.</li>
+      <li>Don't use this tool to generate hateful, harassing, sexually explicit, or otherwise harmful content — that violates Google's Prohibited Use Policy and can get your API key suspended.</li>
+      <li>AI-generated lyrics and prompts can be generic, inaccurate, or accidentally close to existing songs. Review before publishing or using commercially.</li>
+    </ul>
+    <div class="rules-links">
+      Full details: <a href="https://ai.google.dev/gemini-api/terms" target="_blank">Gemini API Terms of Service</a> · <a href="https://policies.google.com/terms/generative-ai/use-policy" target="_blank">Generative AI Prohibited Use Policy</a>
+    </div>
+    <div class="rules-checkbox-row">
+      <input type="checkbox" id="rulesCheckbox" onchange="toggleRulesGate(this)"/>
+      <label for="rulesCheckbox">I have read and agree to these rules</label>
+    </div>
+  </div>
+
+  <div class="app-gate locked" id="appGate">
+
+  <!-- API KEY -->
+  <div class="api-section">
+    <div class="api-row">
+      <input type="password" id="apiKey" placeholder="AIza… paste your free Google Gemini API key here" autocomplete="off"/>
+    </div>
+    <div style="margin-top:10px;font-size:11px;color:var(--muted);letter-spacing:0.02em;">
+      No key yet? Get a free one in ~30 seconds at
+      <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent3)">aistudio.google.com/apikey</a>
+      — no credit card required.
+    </div>
+  </div>
+
+  <!-- CONCEPT FORM -->
+  <div class="form-grid">
+    <div class="field full">
+      <label>Core Song Concept</label>
+      <textarea id="concept" placeholder="e.g. A sad indie pop song about a late-night drive after a breakup — missing someone who chose to leave"></textarea>
+    </div>
+
+    <div class="field">
+      <label>Genre</label>
+      <select id="genre">
+        <option value="">-- pick one --</option>
+        <option>Indie Pop</option>
+        <option>Bedroom Pop</option>
+        <option>Alt-Rock</option>
+        <option>R&B / Neo-Soul</option>
+        <option>Folk / Acoustic</option>
+        <option>Electronic / Synth-Pop</option>
+        <option>Hip-Hop / Lo-Fi</option>
+        <option>Pop-Punk</option>
+        <option>Dream Pop / Shoegaze</option>
+        <option>Country / Americana</option>
+        <option>Jazz / Soul</option>
+        <option>Metal / Post-Hardcore</option>
+        <option>Other</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Vocal Style</label>
+      <select id="vocalStyle">
+        <option value="">-- pick one --</option>
+        <option>Breathy / Intimate</option>
+        <option>Raw / Emotional</option>
+        <option>Powerful / Belting</option>
+        <option>Falsetto / Airy</option>
+        <option>Spoken Word / Rap</option>
+        <option>Harmonized / Layered</option>
+        <option>Lo-Fi / Textured</option>
+        <option>Operatic / Classical</option>
+        <option>Gritty / Raspy</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Mood / Emotion</label>
+      <div class="mood-pills" id="moodPills">
+        <button class="pill" onclick="togglePill(this)">Melancholic</button>
+        <button class="pill" onclick="togglePill(this)">Hopeful</button>
+        <button class="pill" onclick="togglePill(this)">Angry</button>
+        <button class="pill" onclick="togglePill(this)">Nostalgic</button>
+        <button class="pill" onclick="togglePill(this)">Euphoric</button>
+        <button class="pill" onclick="togglePill(this)">Anxious</button>
+        <button class="pill" onclick="togglePill(this)">Peaceful</button>
+        <button class="pill" onclick="togglePill(this)">Defiant</button>
+        <button class="pill" onclick="togglePill(this)">Longing</button>
+        <button class="pill" onclick="togglePill(this)">Playful</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>BPM Preference</label>
+      <select id="bpm">
+        <option value="">-- let AI decide --</option>
+        <option value="60–75 BPM (very slow, introspective)">Slow (60–75 BPM)</option>
+        <option value="76–95 BPM (mid-tempo, emotional)">Mid-Slow (76–95 BPM)</option>
+        <option value="96–115 BPM (moderate, groove)">Mid (96–115 BPM)</option>
+        <option value="116–135 BPM (upbeat, energetic)">Upbeat (116–135 BPM)</option>
+        <option value="136–160 BPM (fast, driving)">Fast (136–160 BPM)</option>
+      </select>
+    </div>
+
+    <div class="field full">
+      <label>Additional Notes (optional)</label>
+      <input type="text" id="notes" placeholder="e.g. inspired by Phoebe Bridgers, rainy night vibe, minor key…"/>
+    </div>
+  </div>
+
+  <button class="btn-generate" id="generateBtn" onclick="generate()">
+    <span class="btn-text">⚡ Generate Suno Prompt Package</span>
+    <span class="spinner"></span>
+  </button>
+
+  <div class="error-msg" id="errorMsg"></div>
+
+  </div> <!-- /app-gate -->
+
+  <!-- OUTPUT -->
+  <div id="output">
+    <div class="output-header">
+      <h2>// OUTPUT PACKAGE</h2>
+      <button class="btn-copy" onclick="copyAll()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+        Copy All
+      </button>
+    </div>
+
+    <!-- Suno Prompt -->
+    <div class="output-block">
+      <div class="block-label">Suno-Ready Prompt</div>
+      <div class="suno-prompt-box" id="sunoPrompt"></div>
+    </div>
+
+    <!-- Song Specs -->
+    <div class="output-block">
+      <div class="block-label">Song Blueprint</div>
+      <div class="structure-grid" id="structureGrid"></div>
+    </div>
+
+    <!-- Style Tags -->
+    <div class="output-block">
+      <div class="block-label">Suno Style Tags</div>
+      <div class="tags-row" id="styleTags"></div>
+    </div>
+
+    <!-- Lyrics -->
+    <div class="output-block">
+      <div class="block-label">Formatted Lyrics</div>
+      <div class="lyrics-section" id="lyricsSection"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ GUIDE MODAL ══ -->
+<div class="modal-overlay" id="guideModal" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-head">
+      <h2>📖 HOW TO USE SONG IDEA BUILDER</h2>
+      <button class="modal-close" onclick="closeGuide()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <h3>What Is This?</h3>
+      <p>SONG IDEA BUILDER turns your rough song idea into a <strong>complete, production-ready Suno AI prompt package</strong> — including structure, lyrics, style tags, BPM, chord mood, and vocal direction. Reddit creators use Suno as a sketchpad before heading to a studio. This tool bridges the gap between "I have a vibe" and "I have a full prompt."</p>
+
+      <h3>Quick Start</h3>
+      <div class="step">
+        <span class="step-num">1</span>
+        <div class="step-text"><strong>Tick the rules checkbox</strong> in the red box at the top of the page. The rest of the app stays locked until you confirm you've read it.</div>
+      </div>
+      <div class="step">
+        <span class="step-num">2</span>
+        <div class="step-text"><strong>Add your free Google Gemini API key.</strong> Get one at <a href="https://aistudio.google.com/apikey" target="_blank" style="color:var(--accent3)">aistudio.google.com/apikey</a> — no credit card needed. Your key stays in your browser and is sent only to Google's API, never anywhere else.</div>
+      </div>
+      <div class="step">
+        <span class="step-num">3</span>
+        <div class="step-text"><strong>Describe your song concept.</strong> Be as specific or as vague as you like. The AI fills in the gaps. Example: <em>"A bittersweet indie pop song about leaving your hometown and never quite fitting in anywhere else."</em></div>
+      </div>
+      <div class="step">
+        <span class="step-num">4</span>
+        <div class="step-text"><strong>Pick your genre, mood, vocals, and BPM.</strong> These shape the entire output. You can leave things blank and the AI will decide.</div>
+      </div>
+      <div class="step">
+        <span class="step-num">5</span>
+        <div class="step-text"><strong>Hit Generate.</strong> Gemini analyzes your inputs and returns a full package in seconds.</div>
+      </div>
+      <div class="step">
+        <span class="step-num">6</span>
+        <div class="step-text"><strong>Copy the Suno-Ready Prompt</strong> and paste it directly into <a href="https://suno.com" target="_blank" style="color:var(--accent3)">suno.com</a>. Use the Style Tags in Suno's style field.</div>
+      </div>
+
+      <h3>What You Get</h3>
+      <ul>
+        <li><strong>Suno-Ready Prompt</strong> — a single optimised block you paste into Suno's song description</li>
+        <li><strong>Song Blueprint</strong> — structure, key/chord mood, BPM range, vocal style, instruments</li>
+        <li><strong>Style Tags</strong> — Suno-compatible genre/mood/instrument tags</li>
+        <li><strong>Formatted Lyrics</strong> — verse/pre-chorus/chorus/bridge with [labels] Suno understands</li>
+      </ul>
+
+      <div class="highlight-box">
+        💡 <strong>Pro tip:</strong> In Suno, paste the formatted lyrics into the "Lyrics" box and the style tags into the "Style of Music" box. Enable "Custom Mode" first for best results.
+      </div>
+
+      <h3>Privacy</h3>
+      <p>Your API key is stored only in your browser's memory for the session. Nothing is logged or stored server-side. All Gemini API calls go directly from your browser to Google. Note: Google's free tier uses your prompts and outputs to improve their models — if that matters to you, this isn't the tool for sensitive lyrics, but it's a non-issue for a song idea generator.</p>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── PILLS ──
+  function togglePill(el) {
+    el.classList.toggle('active');
+  }
+
+  function getActiveMoods() {
+    return [...document.querySelectorAll('.pill.active')].map(p => p.textContent).join(', ');
+  }
+
+  // ── GUIDE ──
+  function openGuide() {
+    document.getElementById('guideModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeGuide() {
+    document.getElementById('guideModal').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  function handleOverlayClick(e) {
+    if (e.target === e.currentTarget) closeGuide();
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeGuide(); });
+
+  // ── RULES GATE ──
+  const RULES_KEY = 'songIdeaBuilderRulesAccepted';
+
+  function toggleRulesGate(checkbox) {
+    const gate = document.getElementById('appGate');
+    if (checkbox.checked) {
+      gate.classList.remove('locked');
+      localStorage.setItem(RULES_KEY, 'true');
+    } else {
+      gate.classList.add('locked');
+      localStorage.removeItem(RULES_KEY);
+    }
+  }
+
+  (function restoreRulesGate() {
+    try {
+      if (localStorage.getItem(RULES_KEY) === 'true') {
+        document.getElementById('rulesCheckbox').checked = true;
+        document.getElementById('appGate').classList.remove('locked');
+      }
+    } catch (e) { /* localStorage unavailable — gate stays locked, which is safe */ }
+  })();
+
+  // ── GENERATE ──
+  async function generate() {
+    if (!document.getElementById('rulesCheckbox').checked) {
+      showError('Please confirm you have read and agree to the rules above.');
+      return;
+    }
+
+    const apiKey = document.getElementById('apiKey').value.trim();
+    const concept = document.getElementById('concept').value.trim();
+    const genre = document.getElementById('genre').value;
+    const vocalStyle = document.getElementById('vocalStyle').value;
+    const moods = getActiveMoods();
+    const bpm = document.getElementById('bpm').value;
+    const notes = document.getElementById('notes').value.trim();
+
+    const errorEl = document.getElementById('errorMsg');
+    errorEl.classList.remove('visible');
+
+    if (!apiKey) { showError('Please enter your Google Gemini API key above.'); return; }
+    if (!concept) { showError('Please describe your song concept.'); return; }
+
+    const btn = document.getElementById('generateBtn');
+    btn.classList.add('loading');
+    btn.disabled = true;
+    document.getElementById('output').classList.remove('visible');
+
+    const prompt = `You are a professional songwriter and music producer specialising in AI music generation prompts for Suno AI.
+
+The user wants to create a song. Here are their inputs:
+- Concept: ${concept}
+- Genre: ${genre || 'Not specified — choose the best fit'}
+- Vocal Style: ${vocalStyle || 'Not specified — choose the best fit'}
+- Mood/Emotion: ${moods || 'Not specified — infer from concept'}
+- BPM Preference: ${bpm || 'Not specified — recommend ideal BPM'}
+- Additional Notes: ${notes || 'None'}
+
+Return ONLY a valid JSON object with this exact structure (no markdown, no backticks, no preamble):
+{
+  "sunoPrompt": "A single optimized paragraph for Suno's song description field. Make it evocative, specific, and packed with production detail.",
+  "blueprint": {
+    "structure": "e.g. Verse → Pre-Chorus → Chorus → Verse → Pre-Chorus → Chorus → Bridge → Chorus",
+    "bpmRange": "e.g. 78–86 BPM",
+    "keyMood": "e.g. D minor — melancholic, spacious",
+    "chordProgression": "e.g. Dm – Bb – F – C (i–VI–III–VII)",
+    "instruments": "e.g. Fingerpicked acoustic guitar, muted electric piano, warm bass, brushed snare, subtle synth pad",
+    "vocalNotes": "e.g. Breathy and intimate in verses, opens up emotionally in the chorus with layered harmonies"
+  },
+  "styleTags": ["tag1", "tag2", "tag3", "tag4", "tag5", "tag6", "tag7", "tag8"],
+  "lyrics": [
+    { "section": "Verse 1", "lines": "Line 1\\nLine 2\\nLine 3\\nLine 4" },
+    { "section": "Pre-Chorus", "lines": "Line 1\\nLine 2" },
+    { "section": "Chorus", "lines": "Line 1\\nLine 2\\nLine 3\\nLine 4" },
+    { "section": "Verse 2", "lines": "Line 1\\nLine 2\\nLine 3\\nLine 4" },
+    { "section": "Pre-Chorus", "lines": "Line 1\\nLine 2" },
+    { "section": "Chorus", "lines": "Line 1\\nLine 2\\nLine 3\\nLine 4" },
+    { "section": "Bridge", "lines": "Line 1\\nLine 2\\nLine 3\\nLine 4" },
+    { "section": "Outro Chorus", "lines": "Line 1\\nLine 2\\nLine 3\\nLine 4" }
+  ]
+}
+
+Write genuinely great lyrics — poetic, specific, emotional, not clichéd. The Suno prompt should read like something a professional producer would write. Style tags must be Suno-compatible (genre, mood, instrument, tempo keywords).`;
+
+    try {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.9,
+              maxOutputTokens: 4096,
+              responseMimeType: 'application/json',
+              thinkingConfig: { thinkingBudget: 0 }
+            }
+          })
+        }
+      );
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error?.message || `API error ${res.status}`);
+      }
+
+      const data = await res.json();
+      const candidate = data.candidates?.[0];
+
+      if (!candidate) {
+        throw new Error('No response from Gemini. Your prompt may have been blocked by safety filters — try rephrasing.');
+      }
+
+      if (candidate.finishReason === 'MAX_TOKENS') {
+        throw new Error('Response got cut off before it finished. Try again, or shorten your notes/concept a bit.');
+      }
+
+      const raw = (candidate.content?.parts || []).map(p => p.text || '').join('');
+      const clean = raw.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(clean);
+
+      renderOutput(parsed);
+
+    } catch (err) {
+      showError(err.message || 'Something went wrong. Check your API key and try again.');
+    } finally {
+      btn.classList.remove('loading');
+      btn.disabled = false;
+    }
+  }
+
+  function renderOutput(d) {
+    // Suno prompt
+    document.getElementById('sunoPrompt').textContent = d.sunoPrompt || '';
+
+    // Blueprint
+    const bp = d.blueprint || {};
+    const bpFields = [
+      { label: 'Structure', key: 'structure' },
+      { label: 'BPM Range', key: 'bpmRange' },
+      { label: 'Key & Mood', key: 'keyMood' },
+      { label: 'Chord Progression', key: 'chordProgression' },
+      { label: 'Instruments', key: 'instruments' },
+      { label: 'Vocal Notes', key: 'vocalNotes' }
+    ];
+    document.getElementById('structureGrid').innerHTML = bpFields.map(f => `
+      <div class="struct-card">
+        <div class="sc-label">${f.label}</div>
+        <div class="sc-value">${bp[f.key] || '—'}</div>
+      </div>
+    `).join('');
+
+    // Style tags
+    const tags = d.styleTags || [];
+    document.getElementById('styleTags').innerHTML = tags.map(t => `<span class="tag">${t}</span>`).join('');
+
+    // Lyrics
+    const lyrics = d.lyrics || [];
+    document.getElementById('lyricsSection').innerHTML = lyrics.map(s => `
+      <div class="lyric-block">
+        <div class="ly-label">[${s.section}]</div>
+        <pre>${s.lines}</pre>
+      </div>
+    `).join('');
+
+    document.getElementById('output').classList.add('visible');
+    document.getElementById('output').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function showError(msg) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = '⚠ ' + msg;
+    el.classList.add('visible');
+  }
+
+  // ── COPY ALL ──
+  function copyAll() {
+    const sunoPrompt = document.getElementById('sunoPrompt').textContent;
+    const grid = document.getElementById('structureGrid');
+    const tags = [...document.querySelectorAll('.tag')].map(t => t.textContent).join(', ');
+    const lyrics = [...document.querySelectorAll('.lyric-block')].map(b => {
+      const label = b.querySelector('.ly-label').textContent;
+      const lines = b.querySelector('pre').textContent;
+      return `${label}\n${lines}`;
+    }).join('\n\n');
+
+    const allText = `== SUNO PROMPT ==\n${sunoPrompt}\n\n== STYLE TAGS ==\n${tags}\n\n== LYRICS ==\n${lyrics}`;
+
+    navigator.clipboard.writeText(allText).then(() => {
+      const btn = document.querySelector('.btn-copy');
+      const orig = btn.innerHTML;
+      btn.textContent = 'Copied!';
+      setTimeout(() => { btn.innerHTML = orig; }, 2000);
+    });
+  }
+</script>
+</body>
+</html>
